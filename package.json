@@ -1,0 +1,65 @@
+{
+  "name": "commander-wizard",
+  "version": "0.0.1",
+  "description": "Interactive wizard mode for commander CLIs — collect, review, and rerun command inputs",
+  "keywords": [
+    "commander",
+    "cli",
+    "wizard",
+    "interactive",
+    "prompts",
+    "clack",
+    "typescript"
+  ],
+  "author": "jaydenfyi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaydenfyi/commander-wizard.git"
+  },
+  "homepage": "https://github.com/jaydenfyi/commander-wizard#readme",
+  "bugs": {
+    "url": "https://github.com/jaydenfyi/commander-wizard/issues"
+  },
+  "type": "module",
+  "packageManager": "nub@0.6.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "nub",
+      "version": "^0.6.0",
+      "onFail": "warn"
+    }
+  },
+  "scripts": {
+    "start": "nub example.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "nub run build && tsc -p tsconfig.test.json && node --experimental-test-module-mocks --test dist-test/wizard.test.js",
+    "test:smoke": "expect wizard-smoke.test.tcl",
+    "prepack": "nub run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26",
+    "commander": "^15.0.0",
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0"
+  },
+  "peerDependencies": {
+    "commander": "^14.0.0 || ^15.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

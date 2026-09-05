@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": { "outDir": "dist-test", "declaration": false },
+  "include": ["wizard.test.ts", "wizard.ts"]
+}
