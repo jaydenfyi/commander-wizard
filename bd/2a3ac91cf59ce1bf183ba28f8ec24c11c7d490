@@ -1,0 +1,37 @@
+.gitignore
+  s_94972dc52c23f8::t_8214c0af79fe35 1-9
+README.md
+  s_94972dc52c23f8::t_18289c0eaa75e2 1-165
+example.ts
+  s_94972dc52c23f8::t_bae7a66146e000 1-55
+index.ts
+  s_94972dc52c23f8::t_b8a0ea4a19f330 1-2
+nub.lock
+  s_94972dc52c23f8::t_ef0ba1032c2ffd 1-297
+tsconfig.build.json
+  s_94972dc52c23f8::t_ffcbab2577c7cf 1-10
+tsconfig.json
+  s_94972dc52c23f8::t_d34ad41dc98823 1-29
+tsconfig.test.json
+  s_94972dc52c23f8::t_4849e31dc7eb09 1-5
+wizard.test.ts
+  s_94972dc52c23f8::t_66dcce2f62342d 1-382
+wizard.ts
+  s_94972dc52c23f8::t_50dfdb0efcfdf9 1-318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "bd2a3ac91cf59ce1bf183ba28f8ec24c11c7d490",
+  "prompts": {},
+  "sessions": {
+    "s_94972dc52c23f8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a06b4e-8fba-7740-a49b-433e1c21e330",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Jayden Carey <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
