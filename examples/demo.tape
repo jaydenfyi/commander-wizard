@@ -1,4 +1,4 @@
-Output examples/demo.gif
+Output examples/wizard-demo.gif
 
 Set FontSize 13
 Set Width 960

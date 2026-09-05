@@ -9,7 +9,7 @@ Adds an interactive wizard (powered by
 users fill in missing inputs, review and edit them, and copy a rerun command
 for future non-interactive use.
 
-![wizard session demo](examples/demo.gif)
+![wizard session demo](examples/wizard-demo.gif)
 
 **Requires:** Commander 14 or 15, Node >=22.12.0, ESM only.
 
