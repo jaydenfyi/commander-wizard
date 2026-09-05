@@ -1,4 +1,4 @@
-# commander-wizard
+# 🧙 commander-wizard
 
 [![npm](https://img.shields.io/npm/v/commander-wizard)](https://www.npmjs.com/package/commander-wizard)
 [![CI](https://github.com/jaydenfyi/commander-wizard/actions/workflows/ci.yaml/badge.svg)](https://github.com/jaydenfyi/commander-wizard/actions/workflows/ci.yaml)
