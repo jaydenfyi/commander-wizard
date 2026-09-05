@@ -1,0 +1,21 @@
+README.md
+  s_94972dc52c23f8::t_da8e7fa8aac56e 12
+examples/demo.tape
+  s_94972dc52c23f8::t_d53be5bd6d9e13 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b6ae835f1cad6ecba948e7849eee987da1b80979",
+  "prompts": {},
+  "sessions": {
+    "s_94972dc52c23f8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a06b4e-8fba-7740-a49b-433e1c21e330",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
