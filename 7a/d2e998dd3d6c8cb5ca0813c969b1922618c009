@@ -1,0 +1,42 @@
+tsconfig.json
+  s_94972dc52c23f8::t_d34ad41dc98823 1-29
+.github/workflows/publish.yaml
+  s_94972dc52c23f8::t_df0a91c09c2c4d 1-24,50-86
+  s_94972dc52c23f8::t_ee5e960c1e66ea 25-49
+tsconfig.build.json
+  s_94972dc52c23f8::t_ffcbab2577c7cf 1-10
+example.ts
+  s_94972dc52c23f8::t_bae7a66146e000 1-55
+nub.lock
+  s_94972dc52c23f8::t_ef0ba1032c2ffd 1-297
+.gitignore
+  s_94972dc52c23f8::t_8214c0af79fe35 1-9
+wizard.ts
+  s_94972dc52c23f8::t_50dfdb0efcfdf9 1-318
+wizard.test.ts
+  s_94972dc52c23f8::t_66dcce2f62342d 1-382
+README.md
+  s_94972dc52c23f8::t_18289c0eaa75e2 1-165
+package.json
+  s_94972dc52c23f8::t_c7dc3b092d62e2 1-65
+tsconfig.test.json
+  s_94972dc52c23f8::t_4849e31dc7eb09 1-5
+index.ts
+  s_94972dc52c23f8::t_b8a0ea4a19f330 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "7ad2e998dd3d6c8cb5ca0813c969b1922618c009",
+  "prompts": {},
+  "sessions": {
+    "s_94972dc52c23f8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a06b4e-8fba-7740-a49b-433e1c21e330",
+        "model": "glm-5.3"
+      },
+      "human_author": null
+    }
+  }
+}
