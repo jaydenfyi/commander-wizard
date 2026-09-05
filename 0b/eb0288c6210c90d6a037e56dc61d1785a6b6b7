@@ -1,0 +1,19 @@
+README.md
+  s_ffccd1f85fa1f1::t_380f58e961fdf2 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "0beb0288c6210c90d6a037e56dc61d1785a6b6b7",
+  "prompts": {},
+  "sessions": {
+    "s_ffccd1f85fa1f1": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a07195-7dbc-70f0-9b19-bfafa0d7ff8f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
