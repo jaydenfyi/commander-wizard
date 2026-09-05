@@ -1,5 +1,17 @@
 # commander-wizard
 
+## 0.1.0
+
+### Minor Changes
+
+- [`cb66418`](https://github.com/jaydenfyi/commander-wizard/commit/cb664181adfe65c6df49057add1af8f61c913d4d) Thanks [@jaydenfyi](https://github.com/jaydenfyi)! - Offer Keep default or Enter a value for custom-parser and non-text defaults without requiring rawDefaults. Keeping a default omits the input and leaves its value to Commander. Preserve rawDefaults as an optional prefill and require input for required positional arguments.
+  
+  Add opt-in validate for inline scalar text validation using existing pure, synchronous Commander parsers. InvalidArgumentError messages allow retrying in the prompt; final Commander validation remains unchanged.
+
+### Patch Changes
+
+- [`f77b444`](https://github.com/jaydenfyi/commander-wizard/commit/f77b4449098bec13ac37574a0d2978c68a5635c2) Thanks [@jaydenfyi](https://github.com/jaydenfyi)! - Internal refactor: split the wizard collection loop into pure planning (`planFields`), prompting (`resolve`), and emission (`emit`). No behavior change.
+
 ## 0.0.5
 
 ### Patch Changes
