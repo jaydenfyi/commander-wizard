@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 # Real terminal integration check, in addition to the deterministic unit tests.
 set timeout 20
-spawn nub tests/smoke-cli.ts deploy --wizard --force --replicas 7
+spawn nub tests/smoke-cli.ts deploy --wizard --force
 exec stty rows 40 columns 140 < $spawn_out(slave,name)
 expect_before {
   timeout { puts stderr "SMOKE-FAIL: timed out"; exit 1 }
@@ -12,6 +12,10 @@ expect -exact "service to deploy" { send "my-svc\r" }
 expect -exact "git tag to deploy" { send "v2.0\r" }
 # regions: multiselect, default us-east-1 preselected — down+space adds eu-west-1
 expect -exact "AWS regions" { send "\033\[B \r" }
+# Replace the default; an invalid submission stays in the prompt for correction.
+expect -exact "Keep default" { send "\033\[B\r" }
+expect -exact "instance count" { send "0\r" }
+expect -exact "must be a positive integer" { send "\0255\r" }
 expect -exact "deploy tags (empty line to finish)" { send "a\r" }
 expect -exact "added: a (empty line to finish)" { send "b\r" }
 expect -exact "added: a, b (empty line to finish)" { send "\r" }
@@ -31,7 +35,7 @@ expect -re {deploying: (\{[^\r\n]+\})} {
   exec node -e {
     const assert = require('node:assert/strict');
     assert.deepEqual(JSON.parse(process.argv[1]), {
-      envs: ['dev', 'staging'], tag: 'v2.0', regions: ['us-east-1', 'eu-west-1'], replicas: 7,
+      envs: ['dev', 'staging'], tag: 'v2.0', regions: ['us-east-1', 'eu-west-1'], replicas: 5,
       logLevel: 'info', force: true, service: 'edited-svc', tags: ['a', 'b']
     });
   } $payload

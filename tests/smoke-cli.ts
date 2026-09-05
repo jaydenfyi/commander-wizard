@@ -2,7 +2,7 @@ import { Argument, Command, Option, InvalidArgumentError } from "commander";
 import { addWizard } from "../src/index.js";
 
 const program = new Command().name("deploy-cli").description(
-  "Fixture for the pty smoke test; exercises choices, variadics, and rawDefaults.",
+  "Fixture for the pty smoke test; exercises choices, variadics, and inline parser validation.",
 );
 
 const ENVIRONMENTS = ["dev", "staging", "prod"] as const;
@@ -43,9 +43,5 @@ program
     console.log("rollback:", JSON.stringify({ env, ...opts }));
   });
 
-const replicas = program.commands[0]!.options.find(o => o.long === '--replicas')!;
-addWizard(program, {
-  invocation: ['nub', 'tests/smoke-cli.ts'],
-  rawDefaults: new Map([[replicas, ['3']]]),
-});
+addWizard(program, { invocation: ['nub', 'tests/smoke-cli.ts'], validate: true });
 await program.parseAsync();

@@ -7,8 +7,10 @@ export interface WizardOptions {
   flags?: string;
   /** Executable and prefix arguments, e.g. ['node', 'cli.ts']. Never a shell fragment. */
   invocation?: readonly string[];
-  /** Raw CLI spellings for defaults processed by custom parsers. Key by Option/Argument identity. */
+  /** Optional raw prefills for custom-parser defaults; otherwise offer to keep the default. Key by Option/Argument identity. */
   rawDefaults?: ReadonlyMap<Option | Argument, readonly string[]>;
+  /** Validate scalar text submissions with pure, synchronous parsers. Runs again after confirmation. Default false. */
+  validate?: boolean;
 }
 
 class WizardError extends Error {}
@@ -162,7 +164,10 @@ function checkLayout(chain: readonly Command[], wizardKey: string): void {
   if (leaf.commands.length) fail('select an explicit leaf command; commands with children are ambiguous in wizard mode.');
 }
 
-function defaults(owner: Option | Argument, config: WizardOptions): string[] {
+/** Returns [] when there is no default, raw spellings when stringifiable,
+ * or undefined when the default cannot be spelled as CLI text (custom parser or non-text value);
+ * collectValue then offers keep-or-enter. */
+function defaults(owner: Option | Argument, config: WizardOptions): string[] | undefined {
   if (owner.defaultValue === undefined) return [];
   const supplied = config.rawDefaults?.get(owner);
   if (supplied) {
@@ -170,13 +175,13 @@ function defaults(owner: Option | Argument, config: WizardOptions): string[] {
     return [...supplied];
   }
   // choices() installs a parser, but its default strings remain CLI spellings.
-  if (owner.parseArg && !owner.argChoices) fail(`provide rawDefaults for ${'flags' in owner ? owner.flags : owner.name()}; custom parsers are not reversible.`);
+  if (owner.parseArg && !owner.argChoices) return undefined;
   const values: unknown[] = Array.isArray(owner.defaultValue) ? owner.defaultValue : [owner.defaultValue];
-  if (!values.every(v => typeof v === 'string' || typeof v === 'number')) fail('non-text defaults require rawDefaults.');
+  if (!values.every(v => typeof v === 'string' || typeof v === 'number')) return undefined; // non-text defaults are kept, not spelled
   return values.map(String);
 }
 
-async function ask(owner: Option | Argument, required: boolean, def: string[], editing = false): Promise<string[]> {
+async function ask(owner: Option | Argument, required: boolean, def: string[], editing: boolean, config: WizardOptions): Promise<string[]> {
   const label = 'flags' in owner ? owner.flags : owner.name();
   const hasDefault = owner.defaultValue !== undefined &&
     (Array.isArray(owner.defaultValue) ? owner.defaultValue.length > 0 : owner.defaultValue !== '');
@@ -209,15 +214,27 @@ async function ask(owner: Option | Argument, required: boolean, def: string[], e
     }
     return values;
   }
+  let unexpected: { error: unknown } | undefined;
   const value = unwrap(await p.text({
     message,
     // Prefill the default so Enter accepts it visibly; clearing is refused below.
     ...(def.length ? { initialValue: def[0]! } : {}),
     validate(value) {
       if (!value) return required ? emptyError : undefined;
+      if (config.validate && owner.parseArg) {
+        try { owner.parseArg(value, owner.defaultValue); }
+        catch (error) {
+          // Duck-typed like Commander's own _callParseArg: code-based, not instanceof, so duplicate commander copies still match.
+          if (error instanceof Error && 'code' in error && error.code === 'commander.invalidArgument')
+            return error.message || 'Invalid value';
+          // Let Clack restore the terminal before propagating unexpected failures.
+          unexpected = { error };
+        }
+      }
       return undefined;
     },
   }));
+  if (unexpected) throw unexpected.error;
   return value === '' ? [] : [value];
 }
 
@@ -238,11 +255,25 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
     const summary: string[] = [];
     const editable: { label: string; edit: () => Promise<void> }[] = [];
     const collectValue = async (owner: Option | Argument, required: boolean) => {
-      const values = answers.get(owner) ?? await ask(owner, required, defaults(owner, config));
+      const def = defaults(owner, config);
+      const label = 'flags' in owner ? owner.flags : owner.name();
+      const prompt = async (current?: string[]) => {
+        // Required positional arguments cannot be omitted, even with a default.
+        if (def === undefined && ('flags' in owner || !required) && unwrap(await p.select({
+          message: `${label} — default: ${owner.defaultValueDescription ?? inspect(owner.defaultValue)}`,
+          options: [
+            { value: true, label: 'Keep default', hint: 'omit from command; Commander supplies the default' },
+            { value: false, label: 'Enter a value' },
+          ],
+          initialValue: current === undefined || current.length === 0,
+        }))) return [];
+        return ask(owner, required, current ?? def ?? [], current !== undefined, config);
+      };
+      const values = answers.get(owner) ?? await prompt();
       answers.set(owner, values);
       editable.push({
-        label: 'flags' in owner ? owner.flags : owner.name(),
-        edit: async () => { answers.set(owner, await ask(owner, required, values, true)); },
+        label,
+        edit: async () => { answers.set(owner, await prompt(values)); },
       });
       return values;
     };
@@ -277,7 +308,8 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
         } else {
           const values = await collectValue(opt, opt.mandatory);
           argv.push(...optionTokens(opt, values));
-          summary.push(`${key}: ${inspect(values.length ? values : undefined)}`);
+          const kept = !values.length && opt.defaultValue !== undefined;
+          summary.push(`${key}: ${kept ? 'not supplied (Commander default)' : inspect(values.length ? values : undefined)}`);
         }
       }
     }
@@ -291,7 +323,8 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
       if (omitted && values.length) fail('cannot supply a positional argument after an omitted argument.');
       if (!values.length && !arg.variadic) omitted = true;
       positional.push(...values);
-      summary.push(`${arg.name()}: ${inspect(arg.variadic ? values : values[0])}`);
+      const kept = !values.length && arg.defaultValue !== undefined;
+      summary.push(`${arg.name()}: ${kept ? 'not supplied (Commander default)' : inspect(arg.variadic ? values : values[0])}`);
     }
     positional.push(...input.positionals.slice(cursor)); // let Commander report excess arguments
     if (positional.length) argv.push('--', ...positional);

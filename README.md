@@ -61,7 +61,10 @@ Values you supply on the command line are kept. The wizard prompts for the rest:
 
 - **Boolean flags** ask Yes/No. A plain flag like `--force` defaults to No.
 - **Choices** offer a select, or a multiselect for variadic choices.
-- **Text inputs** come prefilled with the default; clearing it is refused,
+- **Custom-parser and non-text defaults** offer **Keep default** or **Enter a value**.
+  Keeping the default omits the input; Commander supplies its default without
+  running the parser. Required positional arguments still need a value.
+- **Other text inputs** come prefilled with the default; clearing it is refused,
   because omitting the flag would restore the default. Variadics without
   choices collect one value per line; an empty line ends the list.
 
@@ -75,9 +78,11 @@ Final confirmation defaults to No.
 ### Validation and dispatch
 
 After confirmation, Commander itself parses the assembled command line.
-Parsers, requirements, conflicts, and implications all apply. Invalid inputs
-surface at this point; restart the wizard to correct them. Your action
-receives no wizard-trigger option after a wizard run.
+Parsers, requirements, conflicts, and implications all apply. By default,
+invalid inputs surface at this point; restart the wizard to correct them.
+Opt into [`validate`](#validate) to show scalar parser errors
+inside text prompts instead. Your action receives no wizard-trigger option
+after a wizard run.
 
 ### Cancellation and errors
 
@@ -105,7 +110,8 @@ Returns the same program instance. Repeat calls keep the first configuration.
 | `program` | `Command` | Yes | The configured root command |
 | `options.flags` | `string` | No | Commander boolean flag declaration. Default `--wizard` |
 | `options.invocation` | `readonly string[]` | No | Executable and prefix arguments for rerun commands |
-| `options.rawDefaults` | `ReadonlyMap<Option \| Argument, readonly string[]>` | No | Raw CLI spellings for custom-parser defaults |
+| `options.rawDefaults` | `ReadonlyMap<Option \| Argument, readonly string[]>` | No | Optional raw prefills for irreversible defaults |
+| `options.validate` | `boolean` | No | Validate scalar text submissions with existing parsers. Default `false` |
 
 #### `flags`
 
@@ -130,17 +136,26 @@ launchers, such as `['node', 'cli.ts']` or `['your-installed-cli']`. For
 addWizard(program, { invocation: ['npm', 'run', 'start', '--'] });
 ```
 
-Defaults appear in the rerun command, except empty variadics and false
-booleans without a negative form; declare `--no-color` to express false by
-name. Rerun commands assume a POSIX shell, run from the same directory with
+Defaults appear in the rerun command, except inputs where you selected
+**Keep default**, empty variadics, and false booleans without a negative form;
+declare `--no-color` to express false by name. Kept defaults are inherited
+from the command definition, so changing that definition can change rerun
+behavior. Rerun commands assume a POSIX shell, run from the same directory with
 the same application configuration. PowerShell and cmd.exe quote differently.
 
 #### `rawDefaults`
 
-Custom parsers do not run during prompting, so their defaults need a raw CLI
-spelling. Key the map by the `Option` or `Argument` object; supply raw
-strings, one per scalar input, that produce the intended value with your
-parser's default argument. Replace the quick start's `addWizard()` call with:
+Usually, no configuration is needed: custom-parser and non-text defaults
+offer **Keep default** or **Enter a value**. Required positional arguments
+cannot be omitted, so they ask for input instead. An omitted positional
+argument cannot be followed by a supplied one; the wizard rejects this
+rather than shifting values into the wrong slots.
+
+Use `rawDefaults` only when you want a prefilled prompt instead of that choice.
+Key the map by the `Option` or `Argument` object; supply raw strings, one per
+scalar input, that produce the intended value with your parser's default
+argument. The wizard does not check that these spellings reproduce the
+default. For example:
 
 ```js
 import { Option } from 'commander';
@@ -155,6 +170,28 @@ addWizard(program, {
   rawDefaults: new Map([[replicas, ['3']]]),
 });
 ```
+
+#### `validate`
+
+```js
+addWizard(program, { validate: true });
+```
+
+Reuses each scalar text input's `Option.parseArg` or `Argument.parseArg` on
+submission, including edits. An `InvalidArgumentError` appears inline and
+keeps the prompt open. Unexpected errors abort the wizard. Parser results
+are discarded; Commander parses again after confirmation.
+
+Enable this only when all prompted scalar parsers are synchronous and pure:
+no mutation of defaults or external state, and no side effects. Each attempt
+receives the declared default as the parser's previous value. Parsers can run
+even if the user later cancels. Returning `NaN` does not signal an error;
+parsers must throw `InvalidArgumentError` to reject input.
+
+Kept defaults, omitted inputs, supplied CLI values, choices, and variadics
+are not parser-validated during prompting. Choices already restrict selection;
+variadics need accumulated parser state and remain final-parse only. Conflicts
+and other whole-command checks still run after confirmation.
 
 ### Exit behavior
 

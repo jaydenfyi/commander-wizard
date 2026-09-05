@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, cpSync, writeFileSync, rmSync, symlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Command, Option } from 'commander';
+import { Argument, Command, InvalidArgumentError, Option } from 'commander';
 const answers: unknown[] = [];
 const notes: string[] = [];
 const logs: string[] = [];
@@ -13,6 +13,7 @@ async function answer(options: { validate?: (value: string) => unknown; initialV
   prompts.push(options);
   assert.ok(answers.length, 'unexpected prompt');
   const value = answers.shift();
+  if (typeof value === 'function') return value(options);
   if (typeof value === 'string' && options.validate) assert.equal(options.validate(value), undefined);
   return value;
 }
@@ -171,12 +172,93 @@ test('sync wizard is rejected; marker positional and option values remain ordina
   assert.deepEqual(root.processedArgs, ['--wizard']);
 });
 
-test('custom parser defaults require explicit raw spellings, never String(object)', async () => {
-  const opt = new Option('--date <value>').argParser(raw => new Date(raw)).default(new Date('2026-01-01'));
-  const root = new Command().addOption(opt).action(() => {}).exitOverride().configureOutput({ writeErr() {} });
-  interactive(root, []);
+test('keeping custom parser defaults omits tokens and never calls parsers, including on rerun', async () => {
+  let calls = 0;
+  const date = new Date('2026-01-01');
+  const root = new Command()
+    .addOption(new Option('--date <value>').argParser(raw => { calls++; return new Date(raw); }).default(date).makeOptionMandatory())
+    .option('--sum <n>', '', (raw, previous: number) => { calls++; return previous + Number(raw); }, 10);
+  interactive(root, [true, true, -1, true]);
+  addWizard(root, { invocation: ['demo'] });
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.deepEqual(root.opts(), { date, sum: 10 });
+  assert.equal(prompts[0]!.initialValue, true);
+  assert.match(notes.at(-1)!, /date: not supplied \(Commander default\)/);
+  assert.equal(logs.at(-1), 'rerun non-interactively:\ndemo');
+  await root.parseAsync([], { from: 'user' });
+  assert.deepEqual(root.opts(), { date, sum: 10 });
+  assert.equal(calls, 0);
+  assert.equal(answers.length, 0);
+});
+
+test('custom defaults can be replaced and restored during review without speculative parsing', async () => {
+  for (const keep of [false, true]) {
+    const events: string[] = [];
+    const root = new Command().option('--timeout <seconds>', '', raw => {
+      events.push(raw); return Number(raw) * 1000;
+    }, 5000);
+    root.hook('preAction', () => { events.push('hook'); });
+    root.action(() => {});
+    // Keep, edit to a replacement, then optionally edit back to the default.
+    interactive(root, [true, 0, false, '8', ...(keep ? [0, true] : []), -1, true]);
+    addWizard(root, { invocation: ['demo'] });
+    await root.parseAsync(['--wizard'], { from: 'user' });
+    assert.equal(root.opts().timeout, keep ? 5000 : 8000);
+    assert.deepEqual(events, keep ? ['hook'] : ['8', 'hook']);
+    assert.equal(logs.at(-1), `rerun non-interactively:\ndemo${keep ? '' : ' --timeout=8'}`);
+    assert.equal(answers.length, 0);
+  }
+});
+
+test('optional positional and variadic custom defaults can be kept or replaced', async () => {
+  for (const variadic of [false, true]) {
+    for (const keep of [false, true]) {
+      let calls = 0;
+      const root = new Command().addArgument(new Argument(variadic ? '[values...]' : '[value]')
+        .argParser((raw, previous: number) => { calls++; return previous + Number(raw); }).default(10));
+      interactive(root, [keep, ...(keep ? [] : variadic ? ['2', '3', ''] : ['2']), -1, true]);
+      addWizard(root, { invocation: ['demo'] });
+      await root.parseAsync(['--wizard'], { from: 'user' });
+      assert.deepEqual(root.processedArgs, [keep ? 10 : variadic ? 15 : 12]);
+      assert.equal(calls, keep ? 0 : variadic ? 2 : 1);
+      if (keep) {
+        assert.match(notes.at(-1)!, /not supplied \(Commander default\)/);
+        assert.equal(logs.at(-1), 'rerun non-interactively:\ndemo');
+      }
+      assert.equal(answers.length, 0);
+    }
+  }
+});
+
+test('keeping an earlier positional default never shifts a later answer into its slot', async () => {
+  const root = new Command().argument('[first]', '', Number, 10).argument('[second]');
+  interactive(root, [true, 'later']);
   addWizard(root);
-  await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), /rawDefaults/);
+  await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), /after an omitted argument/);
+  assert.equal(logs.length, 0);
+});
+
+test('required positional defaults still require raw input', async () => {
+  let calls = 0;
+  const root = new Command().argument('<value>', '', raw => { calls++; return Number(raw); }, 10);
+  interactive(root, ['2', -1, true]);
+  addWizard(root);
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.equal(prompts[0]!.initialValue, undefined);
+  assert.equal(typeof prompts[0]!.validate!(''), 'string');
+  assert.deepEqual(root.processedArgs, [2]);
+  assert.equal(calls, 1);
+  assert.equal(answers.length, 0);
+});
+
+test('cancelling the default choice runs no parser or action', async () => {
+  let calls = 0;
+  const root = new Command().option('--count <n>', '', raw => { calls++; return Number(raw); }, 3)
+    .action(() => { calls++; });
+  interactive(root, [Symbol('cancel')]);
+  addWizard(root);
+  await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), { code: 'commander-wizard.cancelled' });
+  assert.equal(calls, 0);
 });
 
 test('built package imports from a clean consumer package boundary', () => {
@@ -207,7 +289,9 @@ test('rawDefaults preserve parser seed semantics without speculative calls', asy
   addWizard(root, { rawDefaults: new Map([[option, ['0']]]) });
   await root.parseAsync(['--wizard'], { from: 'user' });
   assert.equal(root.opts().sum, 10);
+  assert.equal(prompts[0]!.initialValue, '0');
   assert.equal(calls, 1);
+  assert.equal(answers.length, 0);
 });
 
 test('mixed positive/negative occurrences preserve user order', async () => {
@@ -423,5 +507,90 @@ test('defaulted inputs cannot be emptied, so review cannot mislead', async () =>
   assert.deepEqual(zones.opts().zones, ['b']);
   const multiPrompt = prompts.find(pr => Array.isArray(pr.initialValues))!;
   assert.equal(multiPrompt.required, true); // clearing the multiselect is refused
+  assert.equal(answers.length, 0);
+});
+
+test('opt-in scalar parser validation retries input, validates edits, and preserves final parsing', async () => {
+  for (const positional of [false, true]) {
+    const events: string[] = [];
+    const parser = (raw: string, previous: number) => {
+      events.push(raw);
+      if (!/^\d+$/.test(raw)) throw new InvalidArgumentError('Enter digits');
+      return previous + Number(raw);
+    };
+    const root = positional
+      ? new Command().argument('<count>', '', parser, 10)
+      : new Command().option('--count <n>', '', parser, 10);
+    root.hook('preAction', () => { events.push('hook'); });
+    root.action(() => { events.push('action'); });
+    const rejectInvalid = (options: Parameters<typeof answer>[0]) => {
+      assert.equal(options.validate!('bad'), 'Enter digits');
+      return answer(options);
+    };
+    interactive(root, [...(positional ? [] : [false]), rejectInvalid, '2', 0,
+      ...(positional ? [] : [false]), rejectInvalid, '3', -1, true]);
+    addWizard(root, { validate: true });
+    await root.parseAsync(['--wizard'], { from: 'user' });
+    assert.equal(positional ? root.processedArgs[0] : root.opts().count, 13);
+    assert.deepEqual(events, ['bad', '2', 'bad', '3', '3', 'hook', 'action']);
+    assert.equal(answers.length, 0);
+  }
+});
+
+test('inline validation skips kept defaults, empty omissions, supplied values, and variadics', async () => {
+  const events: string[] = [];
+  const parser = (raw: string) => { events.push(raw); return raw; };
+  const root = new Command().option('--kept <value>', '', parser, 'default')
+    .option('--empty <value>', '', parser).option('--supplied <value>', '', parser)
+    .option('--items <values...>', '', parser);
+  interactive(root, [true, '', 'item', '', -1, true]);
+  addWizard(root, { validate: true });
+  await root.parseAsync(['--wizard', '--supplied=cli'], { from: 'user' });
+  assert.deepEqual(events, ['cli', 'item']);
+  assert.equal(root.opts().kept, 'default');
+  assert.equal(answers.length, 0);
+});
+
+test('unexpected inline parser errors propagate unchanged without dispatch', async () => {
+  const error = new Error('broken parser');
+  let ran = false;
+  const root = new Command().option('--value <text>', '', () => { throw error; })
+    .action(() => { ran = true; });
+  interactive(root, ['value']);
+  addWizard(root, { validate: true });
+  await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), e => e === error);
+  assert.equal(ran, false);
+  assert.equal(logs.length, 0);
+});
+
+test('declining after inline validation never dispatches or stores the parsed value', async () => {
+  let calls = 0;
+  let ran = false;
+  const root = new Command().option('--count <n>', '', raw => { calls++; return Number(raw); })
+    .action(() => { ran = true; });
+  interactive(root, ['2', -1, false]);
+  addWizard(root, { validate: true });
+  await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), { code: 'commander-wizard.cancelled' });
+  assert.equal(calls, 1);
+  assert.equal(root.opts().count, undefined);
+  assert.equal(ran, false);
+});
+
+test('non-text defaults without parsers offer keep-or-enter instead of failing', async () => {
+  const date = new Date('2026-01-01');
+  const root = new Command().addOption(new Option('--date <value>').default(date)).action(() => {});
+  interactive(root, [true, -1, true]);
+  addWizard(root, { invocation: ['demo'] });
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.equal(root.opts().date, date); // same instance: Commander installed it, nothing re-parsed
+  assert.equal(logs.at(-1), 'rerun non-interactively:\ndemo');
+
+  // Optional positionals share the path; Commander itself forbids defaults on required arguments.
+  const stamp = new Date('2026-02-02');
+  const positional = new Command().addArgument(new Argument('[when]').default(stamp));
+  interactive(positional, [true, -1, true]);
+  addWizard(positional);
+  await positional.parseAsync(['--wizard'], { from: 'user' });
+  assert.equal(positional.processedArgs[0], stamp);
   assert.equal(answers.length, 0);
 });
