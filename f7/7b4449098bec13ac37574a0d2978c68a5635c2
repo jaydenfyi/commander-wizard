@@ -1,0 +1,24 @@
+.changeset/collect-refactor.md
+  s_ffccd1f85fa1f1::t_7f2b0f02dba854 1-5
+src/wizard.ts
+  s_ffccd1f85fa1f1::t_b57884bb5491b9 251
+  s_ffccd1f85fa1f1::t_c37f1c45391c07 248-250,252-295,380
+  s_ffccd1f85fa1f1::t_306a96f19d72b6 296-361,363-366,368-377,385-386
+  s_ffccd1f85fa1f1::t_9050df686e0430 362,367
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "f77b4449098bec13ac37574a0d2978c68a5635c2",
+  "prompts": {},
+  "sessions": {
+    "s_ffccd1f85fa1f1": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a07195-7dbc-70f0-9b19-bfafa0d7ff8f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
