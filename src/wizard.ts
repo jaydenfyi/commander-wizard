@@ -245,89 +245,145 @@ function optionTokens(opt: Option, values: readonly string[]): string[] {
   return values.flatMap(value => [flag, value]);
 }
 
+/** One planned input per attribute: provided pass-through, boolean pair, or promptable value. */
+type Field =
+  | { kind: 'provided'; key: string; provided: string[] }
+  | { kind: 'boolean'; opt: Option; key: string; message: string; def: boolean; fixed: boolean; positive: Option | undefined; negative: Option | undefined }
+  | { kind: 'value'; key: string; opt: Option; required: boolean; def: string[] | undefined };
+type Plan = {
+  commands: { cmd: Command; supplied: string[][]; fields: Field[] }[];
+  positionals: { arg: Argument; from: string[]; def: string[] | undefined }[];
+  excess: string[];
+};
+
+/** Derive the round's input list once: command walk, attribute groups, CLI positional slices.
+ * Round-invariant; prompting and emission stay in collect. */
+function planFields(input: Input, config: WizardOptions, wizardKey: string): Plan {
+  const commands = input.chain.map(cmd => {
+    const fields: Field[] = [];
+    const seen = new Set<string>();
+    for (const opt of cmd.options) {
+      const key = opt.attributeName();
+      if ([wizardKey, 'help', 'version'].includes(key) || seen.has(key)) continue;
+      seen.add(key);
+      const group = cmd.options.filter(o => o.attributeName() === key);
+      const provided = group.flatMap(o => input.options.get(o) ?? []);
+      if (provided.length) { fields.push({ kind: 'provided', key, provided }); continue; }
+      if (opt.isBoolean() || opt.negate) {
+        const positive = group.find(o => !o.negate);
+        const negative = group.find(o => o.negate);
+        const def = group.reduce((value, option) => option.defaultValue === undefined ? value : Boolean(option.defaultValue), !positive);
+        // No invented --no-x: restrict answers to states the CLI can actually express.
+        fields.push({
+          kind: 'boolean', opt, key, message: `${key} — ${opt.description}`, def,
+          fixed: (positive && def && !negative) || (!positive && !def), positive, negative,
+        });
+      } else {
+        fields.push({ kind: 'value', key, opt, required: opt.mandatory, def: defaults(opt, config) });
+      }
+    }
+    return { cmd, supplied: input.supplied.filter(e => cmd.options.includes(e.option)).map(e => e.tokens), fields };
+  });
+  let cursor = 0;
+  const positionals = input.chain.at(-1)!.registeredArguments.map(arg => {
+    const from = arg.variadic ? input.positionals.slice(cursor) : input.positionals.slice(cursor, cursor + 1);
+    cursor += from.length;
+    return { arg, from, def: defaults(arg, config) };
+  });
+  return { commands, positionals, excess: input.positionals.slice(cursor) };
+}
+
+/** Shared value prompt: keep-default select when the default cannot be spelled as CLI text, else ask. */
+async function promptValue(config: WizardOptions, owner: Option | Argument, required: boolean, def: string[] | undefined, label: string, current?: string[]): Promise<string[]> {
+  // Required positional arguments cannot be omitted, even with a default.
+  if (def === undefined && ('flags' in owner || !required) && unwrap(await p.select({
+    message: `${label} — default: ${owner.defaultValueDescription ?? inspect(owner.defaultValue)}`,
+    options: [
+      { value: true, label: 'Keep default', hint: 'omit from command; Commander supplies the default' },
+      { value: false, label: 'Enter a value' },
+    ],
+    initialValue: current === undefined || current.length === 0,
+  }))) return [];
+  return ask(owner, required, current ?? def ?? [], current !== undefined, config);
+}
+
+/** Prompt every unanswered input, in display order; answers and booleans survive review edits. */
+async function resolve(plan: Plan, answers: Map<Option | Argument, string[]>, booleans: Map<Option, boolean>, config: WizardOptions): Promise<void> {
+  for (const { fields } of plan.commands) {
+    for (const field of fields) {
+      if (field.kind === 'value' && !answers.has(field.opt))
+        answers.set(field.opt, await promptValue(config, field.opt, field.required, field.def, field.opt.flags));
+      else if (field.kind === 'boolean' && !booleans.has(field.opt))
+        booleans.set(field.opt, field.fixed ? field.def : unwrap(await p.confirm({ message: field.message, initialValue: field.def })));
+    }
+  }
+  let omitted = false;
+  for (const { arg, from, def } of plan.positionals) {
+    if (!from.length && !answers.has(arg)) answers.set(arg, await promptValue(config, arg, arg.required, def, arg.name()));
+    const values = from.length ? from : answers.get(arg)!;
+    if (omitted && values.length) fail('cannot supply a positional argument after an omitted argument.');
+    if (!values.length && !arg.variadic) omitted = true;
+  }
+}
+
+/** Emission: tokens, review lines, and edit hooks from resolved state. Performs no prompts of its own. */
+function emit(plan: Plan, answers: Map<Option | Argument, string[]>, booleans: Map<Option, boolean>, config: WizardOptions): { argv: string[]; summary: string[]; editable: { label: string; edit: () => Promise<void> }[] } {
+  const argv: string[] = [];
+  const summary: string[] = [];
+  const editable: { label: string; edit: () => Promise<void> }[] = [];
+  for (const [index, planned] of plan.commands.entries()) {
+    if (index) argv.push(planned.cmd.name());
+    for (const tokens of planned.supplied) argv.push(...tokens);
+    for (const field of planned.fields) {
+      if (field.kind === 'provided') { summary.push(`${field.key}: ${inspect(field.provided)}`); continue; }
+      if (field.kind === 'boolean') {
+        const value = booleans.get(field.opt)!;
+        if (!field.fixed) editable.push({
+          label: field.opt.flags,
+          edit: async () => { booleans.set(field.opt, unwrap(await p.confirm({ message: field.message, initialValue: booleans.get(field.opt)! }))); },
+        });
+        const emitted = value ? field.positive : field.negative;
+        if (emitted) argv.push(emitted.long ?? emitted.short!);
+        // An omitted flag has no effective value of its own; implications and defaults stay with Commander.
+        summary.push(emitted ? `${field.key}: ${value}` : `${field.key}: not supplied`);
+      } else {
+        const values = answers.get(field.opt)!;
+        argv.push(...optionTokens(field.opt, values));
+        const kept = !values.length && field.opt.defaultValue !== undefined;
+        summary.push(`${field.key}: ${kept ? 'not supplied (Commander default)' : inspect(values.length ? values : undefined)}`);
+        editable.push({
+          label: field.opt.flags,
+          edit: async () => { answers.set(field.opt, await promptValue(config, field.opt, field.required, field.def, field.opt.flags, answers.get(field.opt))); },
+        });
+      }
+    }
+  }
+  const positional: string[] = [];
+  for (const { arg, from, def } of plan.positionals) {
+    // CLI-supplied slices are not editable; prompted ones carry their answer in state.
+    const values = from.length ? from : answers.get(arg)!;
+    if (!from.length) editable.push({
+      label: arg.name(),
+      edit: async () => { answers.set(arg, await promptValue(config, arg, arg.required, def, arg.name(), answers.get(arg))); },
+    });
+    positional.push(...values);
+    const kept = !values.length && arg.defaultValue !== undefined;
+    summary.push(`${arg.name()}: ${kept ? 'not supplied (Commander default)' : inspect(arg.variadic ? values : values[0])}`);
+  }
+  positional.push(...plan.excess); // let Commander report excess arguments
+  if (positional.length) argv.push('--', ...positional);
+  return { argv, summary, editable };
+}
+
 async function collect(input: Input, config: WizardOptions, wizardKey: string): Promise<string[]> {
   const leaf = input.chain.at(-1)!;
+  const plan = planFields(input, config, wizardKey);
   const answers = new Map<Option | Argument, string[]>();
   const booleans = new Map<Option, boolean>();
   p.intro(`${leaf.name()} · wizard`);
   while (true) {
-    const argv: string[] = [];
-    const summary: string[] = [];
-    const editable: { label: string; edit: () => Promise<void> }[] = [];
-    const collectValue = async (owner: Option | Argument, required: boolean) => {
-      const def = defaults(owner, config);
-      const label = 'flags' in owner ? owner.flags : owner.name();
-      const prompt = async (current?: string[]) => {
-        // Required positional arguments cannot be omitted, even with a default.
-        if (def === undefined && ('flags' in owner || !required) && unwrap(await p.select({
-          message: `${label} — default: ${owner.defaultValueDescription ?? inspect(owner.defaultValue)}`,
-          options: [
-            { value: true, label: 'Keep default', hint: 'omit from command; Commander supplies the default' },
-            { value: false, label: 'Enter a value' },
-          ],
-          initialValue: current === undefined || current.length === 0,
-        }))) return [];
-        return ask(owner, required, current ?? def ?? [], current !== undefined, config);
-      };
-      const values = answers.get(owner) ?? await prompt();
-      answers.set(owner, values);
-      editable.push({
-        label,
-        edit: async () => { answers.set(owner, await prompt(values)); },
-      });
-      return values;
-    };
-    for (const [index, cmd] of input.chain.entries()) {
-      if (index) argv.push(cmd.name());
-      for (const entry of input.supplied) if (cmd.options.includes(entry.option)) argv.push(...entry.tokens);
-      const seen = new Set<string>();
-      for (const opt of cmd.options) {
-        const key = opt.attributeName();
-        if ([wizardKey, 'help', 'version'].includes(key) || seen.has(key)) continue;
-        seen.add(key);
-        const group = cmd.options.filter(o => o.attributeName() === key);
-        const provided = group.flatMap(o => input.options.get(o) ?? []);
-        if (provided.length) { summary.push(`${key}: ${inspect(provided)}`); continue; }
-        const positive = group.find(o => !o.negate);
-        const negative = group.find(o => o.negate);
-        if (opt.isBoolean() || opt.negate) {
-          const def = group.reduce((value, option) => option.defaultValue === undefined ? value : Boolean(option.defaultValue), !positive);
-          // No invented --no-x: restrict answers to states the CLI can actually express.
-          const fixed = (positive && def && !negative) || (!positive && !def);
-          const message = `${key} — ${opt.description}`;
-          const value = booleans.get(opt) ?? (fixed ? def : unwrap(await p.confirm({ message, initialValue: def })));
-          booleans.set(opt, value);
-          if (!fixed) editable.push({
-            label: opt.flags,
-            edit: async () => { booleans.set(opt, unwrap(await p.confirm({ message, initialValue: value }))); },
-          });
-          const emitted = value ? positive : negative;
-          if (emitted) argv.push(emitted.long ?? emitted.short!);
-          // An omitted flag has no effective value of its own; implications and defaults stay with Commander.
-          summary.push(emitted ? `${key}: ${value}` : `${key}: not supplied`);
-        } else {
-          const values = await collectValue(opt, opt.mandatory);
-          argv.push(...optionTokens(opt, values));
-          const kept = !values.length && opt.defaultValue !== undefined;
-          summary.push(`${key}: ${kept ? 'not supplied (Commander default)' : inspect(values.length ? values : undefined)}`);
-        }
-      }
-    }
-    const positional: string[] = [];
-    let cursor = 0;
-    let omitted = false;
-    for (const arg of leaf.registeredArguments) {
-      let values = arg.variadic ? input.positionals.slice(cursor) : input.positionals.slice(cursor, cursor + 1);
-      cursor += values.length;
-      if (!values.length) values = await collectValue(arg, arg.required);
-      if (omitted && values.length) fail('cannot supply a positional argument after an omitted argument.');
-      if (!values.length && !arg.variadic) omitted = true;
-      positional.push(...values);
-      const kept = !values.length && arg.defaultValue !== undefined;
-      summary.push(`${arg.name()}: ${kept ? 'not supplied (Commander default)' : inspect(arg.variadic ? values : values[0])}`);
-    }
-    positional.push(...input.positionals.slice(cursor)); // let Commander report excess arguments
-    if (positional.length) argv.push('--', ...positional);
+    await resolve(plan, answers, booleans, config);
+    const { argv, summary, editable } = emit(plan, answers, booleans, config);
     const invocation = config.invocation ?? [process.execPath, ...process.execArgv, process.argv[1] ?? fail('provide invocation.')];
     const tokens = [...invocation, ...argv];
     if (tokens.some(token => token.includes('\0'))) fail('NUL bytes cannot be represented in shell arguments.');
