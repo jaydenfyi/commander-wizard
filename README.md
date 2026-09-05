@@ -1,7 +1,7 @@
 # commander-wizard
 
 [![npm](https://img.shields.io/npm/v/commander-wizard)](https://www.npmjs.com/package/commander-wizard)
-[![CI](https://github.com/jaydenfyi/commander-wizard/actions/workflows/publish.yaml/badge.svg)](https://github.com/jaydenfyi/commander-wizard/actions/workflows/publish.yaml)
+[![CI](https://github.com/jaydenfyi/commander-wizard/actions/workflows/ci.yaml/badge.svg)](https://github.com/jaydenfyi/commander-wizard/actions/workflows/ci.yaml)
 
 Adds an interactive wizard (powered by
 [@clack/prompts](https://www.npmjs.com/package/@clack/prompts)) to

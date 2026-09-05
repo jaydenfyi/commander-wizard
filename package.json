@@ -39,6 +39,8 @@
     "prepack": "nub run build"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "1.0.1",
+    "@changesets/cli": "3.0.2",
     "@types/node": "^26",
     "commander": "^15.0.0",
     "typescript": "^7"
