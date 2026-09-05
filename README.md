@@ -190,8 +190,9 @@ by default). Do not add commands afterward or decorate overlapping trees.
 
 ## Security
 
-Do not use the wizard for secrets. Inputs appear in the review screen and the
-rerun command.
+The wizard writes nothing to disk and has no network access. Inputs appear
+on screen and in the rerun command, like any command you type. Do not paste
+a rerun command containing secrets into shared places.
 
 ## Development
 
