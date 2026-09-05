@@ -1,0 +1,29 @@
+.changeset/README.md
+  s_1a2705e5296f20::t_ce43db57126ff5 1-13
+.github/workflows/release.yaml
+  s_1a2705e5296f20::t_199f5029236ba5 1-131
+CHANGELOG.md
+  s_1a2705e5296f20::t_19af4197488b18 1-18
+.changeset/config.json
+  s_1a2705e5296f20::t_3946c529da92dd 1-10
+README.md
+  s_1a2705e5296f20::t_9a0c5c53db28e1 4
+nub.lock
+  s_1a2705e5296f20::t_596e78c23dd990 15-20,33-101,110-125,249-252,257-259,269-312,316-323,332-336,339-451,464-480,545-546,549-550,561-587,590-596,621-622
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b7c73e37f8f71c121fb6ce28ae9e790507c57b5c",
+  "prompts": {},
+  "sessions": {
+    "s_1a2705e5296f20": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0660e-5a91-7cbb-9b6b-57ea98748f6f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
