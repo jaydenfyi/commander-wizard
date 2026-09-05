@@ -1,0 +1,28 @@
+examples/demo.tape
+  s_94972dc52c23f8::t_d6420c844ca3df 3,5,11,15,21
+  s_94972dc52c23f8::t_a578e15d1a8fe1 35
+README.md
+  s_94972dc52c23f8::t_12a54f7e9eb0bb 25,30-31
+examples/deploy.ts
+  s_94972dc52c23f8::t_caec3c41ec2bf1 1,4-11,13-14
+tests/smoke-cli.ts
+  s_94972dc52c23f8::t_8f95b442782530 1-51
+tests/wizard-smoke.test.tcl
+  s_94972dc52c23f8::t_6c76051af0ab68 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "2652938454a50368b8809ae9df7c07f2613cf792",
+  "prompts": {},
+  "sessions": {
+    "s_94972dc52c23f8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a06b4e-8fba-7740-a49b-433e1c21e330",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
