@@ -20,7 +20,7 @@ mock.module('@clack/prompts', { namedExports: {
   text: answer, confirm: answer, select: answer, multiselect: answer,
   isCancel: (value: unknown) => typeof value === 'symbol',
 }});
-const { addWizard } = await import('./wizard.js');
+const { addWizard } = await import('./src/wizard.js');
 Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
 Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
 

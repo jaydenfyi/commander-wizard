@@ -1,19 +1,23 @@
 # commander-wizard
 
-Add a [Clack](https://github.com/bombshell-dev/clack) wizard to your
-[Commander](https://github.com/tj/commander.js) CLI. Users can fill in missing
-inputs, review their choices, and copy a command to run without prompts.
+[![npm](https://img.shields.io/npm/v/commander-wizard)](https://www.npmjs.com/package/commander-wizard)
+[![CI](https://github.com/jaydenfyi/commander-wizard/actions/workflows/publish.yaml/badge.svg)](https://github.com/jaydenfyi/commander-wizard/actions/workflows/publish.yaml)
 
-**Requires:** Commander 14 or 15, Node >=22.12.0, and ESM. Wizard mode needs a terminal
-for both stdin and stdout. Rerun commands use POSIX shell syntax.
+Adds an interactive wizard (powered by
+[@clack/prompts](https://www.npmjs.com/package/@clack/prompts)) to
+[Commander](https://github.com/tj/commander.js) CLIs. A `--wizard` flag lets
+users fill in missing inputs, review and edit them, and copy a rerun command
+for future non-interactive use.
 
-## Quick start
+**Requires:** Commander 14 or 15, Node >=22.12.0, ESM only.
+
+## Install
 
 ```sh
-nub add commander commander-wizard
+npm install commander-wizard
 ```
 
-Save as `cli.mjs`:
+## Quick start
 
 ```js
 import { Command } from 'commander';
@@ -28,82 +32,112 @@ const deploy = program.command('deploy')
   .action((environment, options) => console.log({ environment, ...options }));
 
 // Add your commands and options before calling addWizard.
-addWizard(program, { invocation: ['node', 'cli.mjs'] });
+addWizard(program, { invocation: ['node', 'cli.ts'] });
 
 await program.parseAsync();
 ```
 
 ```sh
-node cli.mjs deploy --wizard                           # prompt for inputs
-node cli.mjs deploy dev --service api --wizard   # keep supplied inputs
-node cli.mjs deploy dev --service api            # ordinary Commander invocation
+node cli.ts deploy --wizard                     # prompt for inputs
+node cli.ts deploy dev --service api --wizard   # keep supplied inputs
+node cli.ts deploy dev --service api            # ordinary invocation
 ```
 
-Use `parseAsync()` for wizard invocations, or
-`parseAsync(args, { from: 'user' })` with an argument array.
+Wizard mode requires `parseAsync()`; pass an argument array with
+`parseAsync(args, { from: 'user' })`.
 
-`addWizard()` decorates the root and every leaf subcommand, including nested
-ones. Only the selected leaf command and supported ancestor options are
-prompted.
+`addWizard()` decorates the root and every nested leaf. Only the selected
+leaf and supported ancestor options are prompted. Actions are optional:
+commands that read `.opts()` after parsing work unchanged.
 
-## Using the wizard
+## The wizard session
 
-You keep values supplied on the command line and answer prompts for the rest:
+### Prompts
 
-- Boolean flags: Yes/No, with No as the default for a plain flag such as `--force`.
-- Choices: select one, or use multiselect for variadic choices.
-- Text inputs: the default is prefilled; press Enter to accept it or edit it.
-  Variadics without choices collect one value per line; an empty line finishes the
-  list.
+Values you supply on the command line are kept. The wizard prompts for the rest:
 
-You review **raw CLI inputs** and a rerun command. Select **Edit …** to revisit a
-prompt with your previous answer prefilled; other answers stay intact. Repeat as
-needed, then choose **Continue to confirmation** (final confirmation defaults to
-No). CLI-supplied inputs remain unchanged and are not offered for editing.
-After confirmation, Commander applies parsers, requirements, conflicts, and
-implications before running your action. Restart the wizard to correct invalid
-inputs; custom parsers do not run during prompting.
+- **Boolean flags** ask Yes/No. A plain flag like `--force` defaults to No.
+- **Choices** offer a select, or a multiselect for variadic choices.
+- **Text inputs** come prefilled with the default; clearing it is refused,
+  because omitting the flag would restore the default. Variadics without
+  choices collect one value per line; an empty line ends the list.
 
-Declining or pressing Ctrl-C exits cleanly with code 0 without running your
-hooks or action. Wizard failures print like Commander errors and exit 1. For
-tests and embedding, configure `exitOverride()` to catch everything instead
-of exiting — the cancellation code is `commander-wizard.cancelled`.
+### Review and edit
 
-You keep Commander's parsing and validation for ordinary invocations. Your
-action receives no wizard-trigger option after a wizard run.
+You review the raw CLI inputs and a rerun command. Select **Edit …** to
+revisit a prompt; your previous answer stays prefilled and other answers are
+kept. Inputs supplied on the command line are not offered for editing.
+Final confirmation defaults to No.
 
-**Do not use the wizard for secrets. You expose inputs in review and rerun output.**
+### Validation and dispatch
 
-## Custom flags
+After confirmation, Commander itself parses the assembled command line.
+Parsers, requirements, conflicts, and implications all apply. Invalid inputs
+surface at this point; restart the wizard to correct them. Your action
+receives no wizard-trigger option after a wizard run.
 
-The default is `--wizard`, with no short alias. Set `flags` to a Commander boolean
-flag declaration to replace it:
+### Cancellation and errors
+
+Declining or pressing Ctrl-C exits with code 0 without running your hooks or
+action. See [Exit behavior](#exit-behavior) for codes and `exitOverride()`
+handling.
+
+## Reference
+
+### `addWizard(program, options?)`
+
+Decorates a configured Commander root. Every leaf command gains the wizard
+flag; parsing, validation, hooks, and action dispatch stay with Commander.
+
+```ts
+addWizard<T extends Command>(program: T, options?: WizardOptions): T
+```
+
+Returns the same program instance. Repeat calls keep the first configuration.
+
+**Parameters**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `program` | `Command` | Yes | The configured root command |
+| `options.flags` | `string` | No | Commander boolean flag declaration. Default `--wizard` |
+| `options.invocation` | `readonly string[]` | No | Executable and prefix arguments for rerun commands |
+| `options.rawDefaults` | `ReadonlyMap<Option \| Argument, readonly string[]>` | No | Raw CLI spellings for custom-parser defaults |
+
+#### `flags`
+
+A short flag, a long flag, or both:
 
 ```js
 addWizard(program, { flags: '-i, --interactive' });
 ```
 
-You can use a short flag alone, a long flag alone, or both. Flags that take values
-and negated flags (`--no-…`) are not supported. The configured flags and their
-Commander option attribute must not collide with existing options, including help.
+Flags that take values and negated flags (`--no-…`) are unsupported. The
+configured flags and their Commander option attribute must not collide with
+existing options, including help.
 
-## Rerun commands and defaults
+#### `invocation`
 
-Set `invocation` to executable tokens, such as `['node', 'cli.mjs']` or
-`['your-installed-cli']`. Without it, you get the current Node executable,
-execution flags, and script path. Specify it for custom launchers. Rerun from
-the same directory with the same application configuration. Use a POSIX shell;
-PowerShell and cmd.exe use different quoting.
+Executable tokens, joined without a shell. Default: the current Node
+executable, its execution flags, and the entry script path. Set it for custom
+launchers, such as `['node', 'cli.ts']` or `['your-installed-cli']`. For
+`npm run` launchers, include the pass-through separator:
 
-You can accept string, numeric, and choice defaults. You get those values in the
-rerun command, except for empty variadics and false booleans without a negative
-flag. Declare a negative form such as `--no-color` to express false by name.
-Inputs with defaults are prefilled — press Enter to accept. Clearing the input
-is refused, because omitting the flag would restore the default.
+```js
+addWizard(program, { invocation: ['npm', 'run', 'start', '--'] });
+```
 
-For a custom parser's default, provide the raw CLI spelling with `rawDefaults`.
-For example, add this to the quick start **before parsing**, replacing its
-`addWizard()` call:
+Defaults appear in the rerun command, except empty variadics and false
+booleans without a negative form; declare `--no-color` to express false by
+name. Rerun commands assume a POSIX shell, run from the same directory with
+the same application configuration. PowerShell and cmd.exe quote differently.
+
+#### `rawDefaults`
+
+Custom parsers do not run during prompting, so their defaults need a raw CLI
+spelling. Key the map by the `Option` or `Argument` object; supply raw
+strings, one per scalar input, that produce the intended value with your
+parser's default argument. Replace the quick start's `addWizard()` call with:
 
 ```js
 import { Option } from 'commander';
@@ -114,39 +148,47 @@ const replicas = new Option('--replicas <count>')
 deploy.addOption(replicas);
 
 addWizard(program, {
-  invocation: ['node', 'cli.mjs'],
+  invocation: ['node', 'cli.ts'],
   rawDefaults: new Map([[replicas, ['3']]]),
 });
 ```
 
-Key `rawDefaults` by the `Option` or `Argument` object. Supply raw strings, one
-for a scalar input, that produce the intended value with your parser's
-previous/default argument. Define a parser to convert CLI strings to numbers;
-a numeric default alone does not perform that conversion.
+### Exit behavior
+
+| Event | Exit | Under `exitOverride()` |
+|---|---|---|
+| Wizard declined or Ctrl-C | 0 | Code `commander-wizard.cancelled`; hooks and action do not run |
+| Wizard failure | 1 | Printed like a Commander error |
+| No terminal on stdin/stdout | 1 | Fails before prompting |
+| Invalid inputs at rerun | 1 | Commander's own validation errors pass through unchanged |
 
 ## Compatibility limits
 
-Use global scalar options, short flags, positive/negative boolean pairs,
-positional arguments, choices, and leaf variadics. Actions are optional:
-commands that read `.opts()` after parsing work unchanged in wizard mode.
+Supported: global scalar options, short flags, positive/negative boolean
+pairs, positional arguments, choices, and leaf variadics.
 
 In wizard mode, put the full command path before flags:
-`cli group command --wizard --flag=value`. Keep short flags separate; avoid `-abc` and
-`-n3`. Put option-like positional values after `--`, including a literal `--wizard`.
+`cli group command --wizard --flag=value`. Keep short flags separate; avoid
+`-abc` and `-n3`. Put option-like positional values after `--`, including a
+literal `--wizard`.
 
-You cannot use these Commander features in wizard mode:
+Unsupported in wizard mode:
 
-- Executable subcommands, implicit/default subcommands, or targeting commands
-  with children.
-- Ancestor positional arguments or variadic options, positional/pass-through
-  option modes, or shadowed global option names/flags.
-- Environment-bound options, optional option values (`--color [value]`), presets,
-  custom boolean parsers, or options stored as command properties.
-- Electron argv or piped input/output.
+- Executable subcommands, implicit/default subcommands, and targeting
+  commands with children.
+- Ancestor positional arguments, variadic options, positional/pass-through
+  option modes, and shadowed global option names or flags.
+- Environment-bound options, optional option values (`--color [value]`),
+  presets, custom boolean parsers, and options stored as command properties.
+- Electron argv and piped input/output.
 
-Configure your tree before calling `addWizard()` on its root. Reserve the
-configured flags and option attribute (`--wizard` and `wizard` by default). Repeat calls keep the first configuration. Do not add commands afterward
-or decorate overlapping trees.
+Reserve the configured flags and option attribute (`--wizard` and `wizard`
+by default). Do not add commands afterward or decorate overlapping trees.
+
+## Security
+
+Do not use the wizard for secrets. Inputs appear in the review screen and the
+rerun command.
 
 ## Development
 
@@ -159,5 +201,4 @@ nub example.ts deploy --wizard
 nub pack --dry-run
 ```
 
-Build with `nub run build`; pack the library and declarations from `dist/`.
-MIT licensed. See `LICENSE`.
+Build with `nub run build`. MIT licensed; see `LICENSE`.

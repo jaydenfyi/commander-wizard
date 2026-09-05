@@ -1,5 +1,5 @@
 import { Argument, Command, Option, InvalidArgumentError } from "commander";
-import { addWizard } from "./index.js";
+import { addWizard } from "./src/index.js";
 
 const program = new Command().name("deploy-cli").description(
   "Demo of the commander-wizard wizard. Try: nub example.ts deploy --wizard",

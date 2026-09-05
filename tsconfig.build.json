@@ -4,7 +4,8 @@
     "noEmit": false,
     "allowImportingTsExtensions": false,
     "declaration": true,
+    "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["index.ts", "wizard.ts"]
+  "include": ["src/index.ts", "src/wizard.ts"]
 }
