@@ -158,7 +158,8 @@ function checkLayout(chain: readonly Command[], wizardKey: string): void {
     }
   }
   const leaf = chain.at(-1)!;
-  if (leaf.commands.length || !Reflect.get(leaf, '_actionHandler')) fail('select an explicit in-process action command. Legacy listeners are unsupported.');
+  // No action requirement: parse-then-.opts() CLIs work unchanged — the re-parse validates and populates.
+  if (leaf.commands.length) fail('select an explicit leaf command; commands with children are ambiguous in wizard mode.');
 }
 
 function defaults(owner: Option | Argument, config: WizardOptions): string[] {
@@ -292,7 +293,7 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
       summary.push(`${arg.name()}: ${inspect(arg.variadic ? values : values[0])}`);
     }
     positional.push(...input.positionals.slice(cursor)); // let Commander report excess arguments
-    argv.push('--', ...positional);
+    if (positional.length) argv.push('--', ...positional);
     const invocation = config.invocation ?? [process.execPath, ...process.execArgv, process.argv[1] ?? fail('provide invocation.')];
     const tokens = [...invocation, ...argv];
     if (tokens.some(token => token.includes('\0'))) fail('NUL bytes cannot be represented in shell arguments.');

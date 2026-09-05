@@ -126,8 +126,9 @@ a numeric default alone does not perform that conversion.
 
 ## Compatibility limits
 
-Use root-only or nested leaf actions with global scalar options, short flags,
-positive/negative boolean pairs, positional arguments, choices, and leaf variadics.
+Use global scalar options, short flags, positive/negative boolean pairs,
+positional arguments, choices, and leaf variadics. Actions are optional:
+commands that read `.opts()` after parsing work unchanged in wizard mode.
 
 In wizard mode, put the full command path before flags:
 `cli group command --wizard --flag=value`. Keep short flags separate; avoid `-abc` and
@@ -135,8 +136,8 @@ In wizard mode, put the full command path before flags:
 
 You cannot use these Commander features in wizard mode:
 
-- Executable subcommands, legacy command listeners, actions on commands with
-  children, or implicit/default subcommands.
+- Executable subcommands, implicit/default subcommands, or targeting commands
+  with children.
 - Ancestor positional arguments or variadic options, positional/pass-through
   option modes, or shadowed global option names/flags.
 - Environment-bound options, optional option values (`--color [value]`), presets,

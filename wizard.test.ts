@@ -215,14 +215,19 @@ test('mixed positive/negative occurrences preserve user order', async () => {
   assert.equal(root.opts().color, true);
 });
 
-test('legacy listeners keep native validation without wizard; wizard rejects them', async () => {
+test('legacy listeners and no-action commands keep native validation; no-action leafs enter wizard mode', async () => {
   const root = new Command().exitOverride().configureOutput({ writeErr() {} });
   root.command('run').argument('<target>').requiredOption('--name <value>');
   let ran = false;
   root.on('command:run', () => { ran = true; });
   addWizard(root);
   await assert.rejects(root.parseAsync(['run'], { from: 'user' }), { code: 'commander.missingMandatoryOptionValue' });
-  await assert.rejects(root.parseAsync(['run', '--wizard'], { from: 'user' }), /Legacy listeners/);
+  Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+  try {
+    // No-action leaf with a legacy listener passes layout and reaches the TTY gate;
+    // the re-parse would fire the listener once with validated values.
+    await assert.rejects(root.parseAsync(['run', '--wizard'], { from: 'user' }), /TTY/);
+  } finally { Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true }); }
   assert.equal(ran, false);
 });
 
