@@ -1,6 +1,6 @@
 {
   "name": "commander-wizard",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Adds an interactive wizard (powered by @clack/prompts) to Commander CLIs: collect, review, and rerun command inputs",
   "keywords": [
     "commander",
