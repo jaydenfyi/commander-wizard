@@ -1,5 +1,5 @@
 import { Argument, Command, Option, InvalidArgumentError } from "commander";
-import { addWizard, WizardCancelledError } from "./index.js";
+import { addWizard } from "./index.js";
 
 const program = new Command().name("deploy-cli").description(
   "Demo of the commander-wizard wizard. Try: nub example.ts deploy --wizard",
@@ -48,8 +48,4 @@ addWizard(program, {
   invocation: ['nub', 'example.ts'],
   rawDefaults: new Map([[replicas, ['3']]]),
 });
-try {
-  await program.parseAsync();
-} catch (error) {
-  if (!(error instanceof WizardCancelledError)) throw error;
-}
+await program.parseAsync();

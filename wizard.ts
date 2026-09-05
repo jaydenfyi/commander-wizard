@@ -2,10 +2,6 @@ import * as p from '@clack/prompts';
 import { inspect } from 'node:util';
 import type { Argument, Command, Option } from 'commander';
 
-export class WizardCancelledError extends Error {
-  constructor() { super('Wizard cancelled.'); this.name = 'WizardCancelledError'; }
-}
-
 export interface WizardOptions {
   /** Commander boolean flag declaration. Defaults to --wizard. */
   flags?: string;
@@ -15,8 +11,15 @@ export interface WizardOptions {
   rawDefaults?: ReadonlyMap<Option | Argument, readonly string[]>;
 }
 
+class WizardError extends Error {}
+
+/** Aborts collection on cancel; surfaced to callers through Commander's exit channel. */
+class WizardCancelledError extends Error {
+  constructor() { super('Wizard cancelled.'); this.name = 'WizardCancelledError'; }
+}
+
 const installed = new WeakSet<Command>();
-const fail = (message: string): never => { throw new Error(`Wizard: ${message}`); };
+const fail = (message: string): never => { throw new WizardError(`Wizard: ${message}`); };
 
 /** Decorate an already-configured program. No global/prototype patching; use parseAsync for wizard mode. */
 export function addWizard<T extends Command>(program: T, config: WizardOptions = {}): T {
@@ -47,23 +50,31 @@ export function addWizard<T extends Command>(program: T, config: WizardOptions =
     cmd.on(`option:${flagOption.name()}`,  () => fail('use parseAsync() with an explicit command path and unbundled flags for wizard mode.'));
   }
   program.parseAsync = async function (argv, options) {
-    const args = userArgs(argv, options?.from);
-    if (!requested(args, markers)) return await parseAsync.call(this, argv, options) as T;
-    if (options?.from === 'electron' || (!argv && process.versions.electron)) fail('Electron wizard invocations are unsupported; pass explicit user arguments.');
-    let input: Input;
-    try { input = scan(program, args, markers); }
-    catch {
-      // Commander can distinguish reserved text used as data in grammars we do not support.
-      // An actual wizard option is stopped by the option listener above.
-      return await parseAsync.call(this, argv, options) as T;
+    try {
+      const args = userArgs(argv, options?.from);
+      if (!requested(args, markers)) return await parseAsync.call(this, argv, options) as T;
+      if (options?.from === 'electron' || (!argv && process.versions.electron)) fail('Electron wizard invocations are unsupported; pass explicit user arguments.');
+      let input: Input;
+      try { input = scan(program, args, markers); }
+      catch {
+        // Commander can distinguish reserved text used as data in grammars we do not support.
+        // An actual wizard option is stopped by the option listener above.
+        return await parseAsync.call(this, argv, options) as T;
+      }
+      // A marker consumed as an option value is data, not a wizard request.
+      if (!input.wizard) return await parseAsync.call(this, argv, options) as T;
+      checkLayout(input.chain, wizardKey);
+      if (!process.stdin.isTTY || !process.stdout.isTTY) fail('interactive input requires a TTY.');
+      const completed = await collect(input, config, wizardKey);
+      // Commander alone owns coercion, validation, hooks, and action dispatch.
+      return await parseAsync.call(this, completed, { from: 'user' }) as T;
+    } catch (error) {
+      // Route our failures through Commander's own channel: stock CLI behavior by default,
+      // catchable via .exitOverride() for tests and embedding — no library-specific catches.
+      if (error instanceof WizardCancelledError) exitVia(this, 0, 'commander-wizard.cancelled', 'Wizard cancelled.');
+      if (error instanceof WizardError) this.error(error.message);
+      throw error;
     }
-    // A marker consumed as an option value is data, not a wizard request.
-    if (!input.wizard) return await parseAsync.call(this, argv, options) as T;
-    checkLayout(input.chain, wizardKey);
-    if (!process.stdin.isTTY || !process.stdout.isTTY) fail('interactive input requires a TTY.');
-    const completed = await collect(input, config, wizardKey);
-    // Commander alone owns coercion, validation, hooks, and action dispatch.
-    return await parseAsync.call(this, completed, { from: 'user' }) as T;
   };
   installed.add(program);
   return program;
@@ -310,6 +321,13 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
 function unwrap<T>(value: T | symbol): T {
   if (p.isCancel(value)) { p.cancel('Wizard cancelled.'); throw new WizardCancelledError(); }
   return value as T;
+}
+
+/** Exits through Commander's own channel so .exitOverride() stays authoritative. */
+function exitVia(program: Command, exitCode: number, code: string, message: string): never {
+  const exit = Reflect.get(program, '_exit') as (this: Command, exitCode: number, code: string, message: string) => void;
+  exit.call(program, exitCode, code, message);
+  throw new Error('unreachable: _exit exits, or an exitOverride callback throws');
 }
 
 /** POSIX shell quoting. Windows shells are not supported. */

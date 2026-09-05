@@ -20,7 +20,7 @@ mock.module('@clack/prompts', { namedExports: {
   text: answer, confirm: answer, select: answer, multiselect: answer,
   isCancel: (value: unknown) => typeof value === 'symbol',
 }});
-const { addWizard, WizardCancelledError } = await import('./wizard.js');
+const { addWizard } = await import('./wizard.js');
 Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
 Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
 
@@ -127,12 +127,12 @@ test('required variadic choices use arrays and native requirements stay enforced
 test('cancel and decline never run host hooks or actions', async () => {
   for (const response of [false, Symbol('cancel')]) {
     let calls = 0;
-    const root = new Command().option('--force');
+    const root = new Command().option('--force').exitOverride().configureOutput({ writeErr() {} });
     root.hook('preAction', () => { calls++; });
     root.action(() => { calls++; });
     interactive(root, [false, -1, response]);
     addWizard(root);
-    await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), WizardCancelledError);
+    await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), { code: 'commander-wizard.cancelled' });
     assert.equal(calls, 0);
     assert.equal(root.getOptionValue('force'), undefined);
   }
@@ -150,7 +150,7 @@ test('Commander rejects prompted conflicts before any host hooks', async () => {
 });
 
 test('unsupported layouts fail before prompting and ordinary invocations still work', async () => {
-  const root = new Command().addOption(new Option('--token <value>').env('TOKEN'));
+  const root = new Command().addOption(new Option('--token <value>').env('TOKEN')).exitOverride().configureOutput({ writeErr() {} });
   root.action(() => {});
   addWizard(root);
   await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), /env bindings/);
@@ -170,7 +170,7 @@ test('sync wizard is rejected; marker positional and option values remain ordina
 
 test('custom parser defaults require explicit raw spellings, never String(object)', async () => {
   const opt = new Option('--date <value>').argParser(raw => new Date(raw)).default(new Date('2026-01-01'));
-  const root = new Command().addOption(opt).action(() => {});
+  const root = new Command().addOption(opt).action(() => {}).exitOverride().configureOutput({ writeErr() {} });
   interactive(root, []);
   addWizard(root);
   await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), /rawDefaults/);
@@ -227,7 +227,7 @@ test('legacy listeners keep native validation without wizard; wizard rejects the
 });
 
 test('TTY-less requests fail rather than hanging', async () => {
-  const root = new Command().action(() => {});
+  const root = new Command().action(() => {}).exitOverride().configureOutput({ writeErr() {} });
   addWizard(root);
   Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
   try { await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), /TTY/); }
@@ -245,7 +245,7 @@ test('ordinary option data survives command layouts outside the wizard grammar',
 
 test('bundled wizard flags cannot bypass prompting and run the action', async () => {
   let ran = false;
-  const root = new Command().option('-v, --verbose').action(() => { ran = true; });
+  const root = new Command().option('-v, --verbose').action(() => { ran = true; }).exitOverride().configureOutput({ writeErr() {} });
   addWizard(root, { flags: '-i, --interactive' });
   await assert.rejects(root.parseAsync(['-vi'], { from: 'user' }), /unbundled/);
   assert.equal(ran, false);
@@ -287,12 +287,12 @@ test('review edits retain other answers, replace tokens, and defer parsers and h
 test('cancel at review or while editing runs nothing', async () => {
   for (const tail of [[Symbol('cancel')], [0, Symbol('cancel')], [0, 'changed', -1, false]]) {
     let calls = 0;
-    const root = new Command().option('--name <value>', '', raw => { calls++; return raw; });
+    const root = new Command().option('--name <value>', '', raw => { calls++; return raw; }).exitOverride().configureOutput({ writeErr() {} });
     root.hook('preAction', () => { calls++; });
     root.action(() => { calls++; });
     interactive(root, ['first', ...tail]);
     addWizard(root);
-    await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), WizardCancelledError);
+    await assert.rejects(root.parseAsync(['--wizard'], { from: 'user' }), { code: 'commander-wizard.cancelled' });
     assert.equal(calls, 0);
     assert.equal(root.opts().name, undefined);
     assert.equal(answers.length, 0);

@@ -17,7 +17,7 @@ Save as `cli.mjs`:
 
 ```js
 import { Command } from 'commander';
-import { addWizard, WizardCancelledError } from 'commander-wizard';
+import { addWizard } from 'commander-wizard';
 
 const program = new Command('deploy-cli');
 const deploy = program.command('deploy')
@@ -30,11 +30,7 @@ const deploy = program.command('deploy')
 // Add your commands and options before calling addWizard.
 addWizard(program, { invocation: ['node', 'cli.mjs'] });
 
-try {
-  await program.parseAsync();
-} catch (error) {
-  if (!(error instanceof WizardCancelledError)) throw error;
-}
+await program.parseAsync();
 ```
 
 ```sh
@@ -68,9 +64,10 @@ After confirmation, Commander applies parsers, requirements, conflicts, and
 implications before running your action. Restart the wizard to correct invalid
 inputs; custom parsers do not run during prompting.
 
-Declining or pressing Ctrl-C throws `WizardCancelledError` without running your
-hooks or action. Catch it as in the example. For Commander errors, configure
-`exitOverride()` if you need to catch them instead of exiting.
+Declining or pressing Ctrl-C exits cleanly with code 0 without running your
+hooks or action. Wizard failures print like Commander errors and exit 1. For
+tests and embedding, configure `exitOverride()` to catch everything instead
+of exiting — the cancellation code is `commander-wizard.cancelled`.
 
 You keep Commander's parsing and validation for ordinary invocations. Your
 action receives no wizard-trigger option after a wizard run.
