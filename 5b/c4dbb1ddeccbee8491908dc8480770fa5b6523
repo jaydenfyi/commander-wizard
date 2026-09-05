@@ -1,0 +1,25 @@
+tests/smoke-validate-cli.ts
+  s_ffccd1f85fa1f1::t_7cb19d23f9f8e3 1-32
+tests/validate-smoke.test.tcl
+  s_ffccd1f85fa1f1::t_569395f84bfee7 12,16,19
+  s_ffccd1f85fa1f1::t_ee4e3e982d0b55 14
+  s_ffccd1f85fa1f1::t_f35c38b3d95094 1-11,13,15,17-18,20-38
+package.json
+  s_ffccd1f85fa1f1::t_ad980721686e86 39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "5bc4dbb1ddeccbee8491908dc8480770fa5b6523",
+  "prompts": {},
+  "sessions": {
+    "s_ffccd1f85fa1f1": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a07195-7dbc-70f0-9b19-bfafa0d7ff8f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
