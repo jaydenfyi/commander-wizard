@@ -36,6 +36,7 @@
     "typecheck": "tsc --noEmit",
     "test": "nub run build && tsc -p tsconfig.test.json && node --experimental-test-module-mocks --test dist-test/tests/wizard.test.js",
     "test:smoke": "expect tests/wizard-smoke.test.tcl",
+    "test:smoke:validate": "expect tests/validate-smoke.test.tcl",
     "prepack": "nub run build"
   },
   "devDependencies": {
