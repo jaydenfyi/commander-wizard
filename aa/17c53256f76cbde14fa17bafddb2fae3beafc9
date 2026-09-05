@@ -1,0 +1,33 @@
+README.md
+  s_94972dc52c23f8::t_2334770cea1449 138
+  s_94972dc52c23f8::t_4b4b4e2fd7653c 3-4,6-10,12-14,17,20,75-77,79,81-82,94,96,99,117-119,126-128,130-133,139-140,151,156-163,167-168,171-183,185-186
+  s_94972dc52c23f8::t_daaebcd3aab000 35,41-43,46-55,57,59-63,65,67-70,72,74,83-93,98,100-109,115-116,120-124,135,137,188,190-191,204
+cli.ts
+  s_94972dc52c23f8::t_e40f2c3e2ca0df 1-14
+example.ts
+  s_94972dc52c23f8::t_6ec91752b8a9f5 2
+package.json
+  s_94972dc52c23f8::t_b9f937f9fc6fba 4
+tsconfig.build.json
+  s_94972dc52c23f8::t_c19748b71f7a04 7,10
+tsconfig.test.json
+  s_94972dc52c23f8::t_721b2d0058e9e4 3-8
+wizard.test.ts
+  s_94972dc52c23f8::t_8d48c3d7457078 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "aa17c53256f76cbde14fa17bafddb2fae3beafc9",
+  "prompts": {},
+  "sessions": {
+    "s_94972dc52c23f8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a06b4e-8fba-7740-a49b-433e1c21e330",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
