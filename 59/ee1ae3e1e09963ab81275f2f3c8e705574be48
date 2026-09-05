@@ -1,0 +1,19 @@
+.github/workflows/ci.yaml
+  s_1a2705e5296f20::t_3f203799d4b435 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "59ee1ae3e1e09963ab81275f2f3c8e705574be48",
+  "prompts": {},
+  "sessions": {
+    "s_1a2705e5296f20": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0660e-5a91-7cbb-9b6b-57ea98748f6f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
