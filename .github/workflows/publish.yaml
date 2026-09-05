@@ -25,7 +25,7 @@ jobs:
           package-manager-cache: false # nub has its own cache; avoid poisoned npm cache feeding publish
       # exact-pinned tool bootstrap; nub never runs in the publish job
       - name: Install nub # zizmor: ignore[adhoc-packages]
-        run: npm install -g nub@0.6.0 --ignore-scripts
+        run: npm install -g @nubjs/nub@0.6.0 --ignore-scripts
       - name: Install dependencies
         run: nub ci --ignore-scripts
       - name: Run tests
@@ -48,7 +48,7 @@ jobs:
           package-manager-cache: false # Slower, but no cache poisoning risk
       # exact-pinned tool bootstrap; nub never runs in the publish job
       - name: Install nub # zizmor: ignore[adhoc-packages]
-        run: npm install -g nub@0.6.0 --ignore-scripts
+        run: npm install -g @nubjs/nub@0.6.0 --ignore-scripts
       - name: Install dependencies
         run: nub ci --ignore-scripts
       - name: Build package
