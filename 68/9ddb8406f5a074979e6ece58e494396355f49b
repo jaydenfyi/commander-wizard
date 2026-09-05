@@ -1,0 +1,25 @@
+tests/wizard.test.ts
+  s_1a2705e5296f20::t_f78abb720bc4fe 10,21,73,107,290-291,341-376,406
+  s_1a2705e5296f20::t_b40293724e2686 377
+.github/workflows/ci.yaml
+  s_1a2705e5296f20::t_fe7d4ae13f6dde 1-37
+src/wizard.ts
+  s_1a2705e5296f20::t_a91961a51dc204 273-274,276
+  s_1a2705e5296f20::t_6ae5a0b4f6482a 193-194,208,275,302-304
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "689ddb8406f5a074979e6ece58e494396355f49b",
+  "prompts": {},
+  "sessions": {
+    "s_1a2705e5296f20": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0660e-5a91-7cbb-9b6b-57ea98748f6f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
