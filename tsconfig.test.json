@@ -5,5 +5,5 @@
     "outDir": "dist-test",
     "declaration": false
   },
-  "include": ["wizard.test.ts", "src/wizard.ts"]
+  "include": ["tests/wizard.test.ts", "src/wizard.ts"]
 }

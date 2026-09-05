@@ -5,7 +5,7 @@ import type { Argument, Command, Option } from 'commander';
 export interface WizardOptions {
   /** Commander boolean flag declaration. Defaults to --wizard. */
   flags?: string;
-  /** Executable and prefix arguments, e.g. ['nub', 'example.ts']. Never a shell fragment. */
+  /** Executable and prefix arguments, e.g. ['node', 'cli.ts']. Never a shell fragment. */
   invocation?: readonly string[];
   /** Raw CLI spellings for defaults processed by custom parsers. Key by Option/Argument identity. */
   rawDefaults?: ReadonlyMap<Option | Argument, readonly string[]>;

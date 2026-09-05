@@ -197,7 +197,7 @@ nub install
 nub run typecheck
 nub run test          # regression tests and built-package import check
 nub run test:smoke    # terminal test; requires expect and stty
-nub example.ts deploy --wizard
+nub examples/deploy.ts deploy --wizard
 nub pack --dry-run
 ```
 

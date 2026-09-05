@@ -1,8 +1,8 @@
 import { Argument, Command, Option, InvalidArgumentError } from "commander";
-import { addWizard } from "./src/index.js";
+import { addWizard } from "../src/index.js";
 
 const program = new Command().name("deploy-cli").description(
-  "Demo of the commander-wizard wizard. Try: nub example.ts deploy --wizard",
+  "Demo of the commander-wizard wizard. Try: nub examples/deploy.ts deploy --wizard",
 );
 
 const ENVIRONMENTS = ["dev", "staging", "prod"] as const;
@@ -45,7 +45,7 @@ program
 
 const replicas = program.commands[0]!.options.find(o => o.long === '--replicas')!;
 addWizard(program, {
-  invocation: ['nub', 'example.ts'],
+  invocation: ['nub', 'examples/deploy.ts'],
   rawDefaults: new Map([[replicas, ['3']]]),
 });
 await program.parseAsync();
