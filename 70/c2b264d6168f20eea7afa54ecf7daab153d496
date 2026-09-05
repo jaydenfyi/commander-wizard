@@ -1,0 +1,31 @@
+CHANGELOG.md
+  s_1a2705e5296f20::t_19af4197488b18 1-18
+nub.lock
+  s_1a2705e5296f20::t_596e78c23dd990 15-20,33-101,110-125,249-252,257-259,269-312,316-323,332-336,339-451,464-480,545-546,549-550,561-587,590-596,621-622
+README.md
+  s_1a2705e5296f20::t_9a0c5c53db28e1 4
+.changeset/config.json
+  s_1a2705e5296f20::t_3946c529da92dd 1-10
+.github/workflows/release.yaml
+  s_1a2705e5296f20::t_199f5029236ba5 2,5-12,14-15,17-20,22,28,31-32,38-45,47,49-50,60-90,97-99,101-105,107-108,110-111,121-131
+package.json
+  s_1a2705e5296f20::t_47a60f1163680c 42-43
+.changeset/README.md
+  s_1a2705e5296f20::t_ce43db57126ff5 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "70c2b264d6168f20eea7afa54ecf7daab153d496",
+  "prompts": {},
+  "sessions": {
+    "s_1a2705e5296f20": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0660e-5a91-7cbb-9b6b-57ea98748f6f",
+        "model": "glm-5.3"
+      },
+      "human_author": null
+    }
+  }
+}
