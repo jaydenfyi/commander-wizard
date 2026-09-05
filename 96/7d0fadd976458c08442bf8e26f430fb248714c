@@ -1,0 +1,19 @@
+.changeset/six-otters-relax.md
+  s_1a2705e5296f20::t_86c167a1c90727 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "967d0fadd976458c08442bf8e26f430fb248714c",
+  "prompts": {},
+  "sessions": {
+    "s_1a2705e5296f20": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0660e-5a91-7cbb-9b6b-57ea98748f6f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
