@@ -1,0 +1,19 @@
+.changeset/keep-custom-defaults.md
+  s_ffccd1f85fa1f1::t_13ac8caa973724 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "26483c4866dc51f3fa897f0b77f38a1a98124fcb",
+  "prompts": {},
+  "sessions": {
+    "s_ffccd1f85fa1f1": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a07195-7dbc-70f0-9b19-bfafa0d7ff8f",
+        "model": "glm-5.3"
+      },
+      "human_author": "jaydenfyi <213395523+jaydenfyi@users.noreply.github.com>"
+    }
+  }
+}
