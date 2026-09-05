@@ -1,5 +1,5 @@
 ---
-"commander-wizard": patch
+"commander-wizard": minor
 ---
 
 Offer Keep default or Enter a value for custom-parser and non-text defaults without requiring rawDefaults. Keeping a default omits the input and leaves its value to Commander. Preserve rawDefaults as an optional prefill and require input for required positional arguments.
