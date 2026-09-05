@@ -190,8 +190,8 @@ async function ask(owner: Option | Argument, required: boolean, def: string[], e
       message: hasDefault ? `${message} (select at least one; omission restores the default)` : message,
       options, required, initialValues: def,
     }));
-    // Optional choices must be skippable rather than silently selecting the first entry.
-    if (!required && !def.length && !unwrap(await p.confirm({ message: `Set ${label}?`, initialValue: false }))) return [];
+    // Optional choices must be skippable, including when revisiting an earlier answer.
+    if (!required && !unwrap(await p.confirm({ message: `Set ${label}?`, initialValue: def.length > 0 }))) return [];
     return [unwrap(await p.select({ message, options, ...(def[0] === undefined ? {} : { initialValue: def[0] }) }))];
   }
   if (owner.variadic) {
@@ -205,7 +205,7 @@ async function ask(owner: Option | Argument, required: boolean, def: string[], e
         validate: v => !v?.trim() && required && !values.length ? 'Enter at least one value' : undefined,
       }));
       if (!value.trim()) break;
-      values.push(value.trim());
+      values.push(value);
     }
     return values;
   }
@@ -270,9 +270,10 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
             label: opt.flags,
             edit: async () => { booleans.set(opt, unwrap(await p.confirm({ message, initialValue: value }))); },
           });
-          if (value && positive) argv.push(positive.long ?? positive.short!);
-          else if (!value && negative) argv.push(negative.long ?? negative.short!);
-          summary.push(`${key}: ${value}`);
+          const emitted = value ? positive : negative;
+          if (emitted) argv.push(emitted.long ?? emitted.short!);
+          // An omitted flag has no effective value of its own; implications and defaults stay with Commander.
+          summary.push(emitted ? `${key}: ${value}` : `${key}: not supplied`);
         } else {
           const values = await collectValue(opt, opt.mandatory);
           argv.push(...optionTokens(opt, values));
@@ -298,7 +299,9 @@ async function collect(input: Input, config: WizardOptions, wizardKey: string): 
     const tokens = [...invocation, ...argv];
     if (tokens.some(token => token.includes('\0'))) fail('NUL bytes cannot be represented in shell arguments.');
     const command = tokens.map(shellQuote).join(' ');
-    p.note(`${summary.join('\n')}\n\nrerun non-interactively:\n${command}`, 'Review CLI inputs (Commander validates after confirmation)');
+    p.note(summary.join('\n'), 'Review CLI inputs (Commander validates after confirmation)');
+    // Undecorated single line: clack note borders and indentation make long commands uncopyable.
+    p.log.message(`rerun non-interactively:\n${command}`, { withGuide: false });
     if (editable.length) {
       const selected = unwrap(await p.select({
         message: 'Continue or edit an input?',

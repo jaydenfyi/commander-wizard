@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        commander: [14, 15]
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install expect (pty smoke test)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends expect
+      - name: Install Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          package-manager-cache: false # nub has its own cache; avoid poisoned npm cache
+      # exact-pinned tool bootstrap, matching publish.yaml
+      - name: Install nub # zizmor: ignore[adhoc-packages]
+        run: npm install -g @nubjs/nub@0.6.0 --ignore-scripts
+      - name: Install dependencies
+        run: nub ci --ignore-scripts
+      - name: Pin Commander major for this matrix leg
+        run: npm install --no-save commander@${{ matrix.commander }}
+      - name: Typecheck and test
+        run: nub run typecheck && nub run test
+      - name: Run pty smoke test
+        run: nub run test:smoke

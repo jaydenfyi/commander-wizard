@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { Command, Option } from 'commander';
 const answers: unknown[] = [];
 const notes: string[] = [];
+const logs: string[] = [];
 const prompts: { initialValue?: unknown; initialValues?: unknown; required?: boolean; validate?: (value: string) => unknown }[] = [];
 async function answer(options: { validate?: (value: string) => unknown; initialValue?: unknown; initialValues?: unknown; required?: boolean }) {
   prompts.push(options);
@@ -17,6 +18,7 @@ async function answer(options: { validate?: (value: string) => unknown; initialV
 }
 mock.module('@clack/prompts', { namedExports: {
   intro() {}, outro() {}, cancel() {}, note(message: string) { notes.push(message); },
+  log: { message(message: string) { logs.push(message); } },
   text: answer, confirm: answer, select: answer, multiselect: answer,
   isCancel: (value: unknown) => typeof value === 'symbol',
 }});
@@ -68,6 +70,7 @@ test('collision preflight leaves all commands unchanged', () => {
 function interactive(root: Command, values: unknown[]) {
   answers.splice(0, answers.length, ...values);
   notes.length = 0;
+  logs.length = 0;
   prompts.length = 0;
   root.exitOverride().configureOutput({ writeErr() {} });
   return root;
@@ -101,7 +104,7 @@ test('rerun shell tokens round-trip globals, negations, defaults, short flags an
   interactive(root, ['team one', 'short value', 'east', false, ...tricky, '', ...tricky, '', -1, true]);
   addWizard(root, { invocation: ['runner'] });
   await root.parseAsync(['run', '--wizard'], { from: 'user' });
-  const line = notes[0]!.split('rerun non-interactively:\n')[1]!;
+  const line = logs[0]!.split('rerun non-interactively:\n')[1]!;
   // Harmless shell function returns its argv as JSON. No external user data is executed.
   const output = execFileSync('sh', ['-c', `runner() { node -e 'console.log(JSON.stringify(process.argv.slice(1)))' -- "$@"; }; ${line}`], { encoding: 'utf8' });
   const tokens: string[] = JSON.parse(output);
@@ -284,8 +287,8 @@ test('review edits retain other answers, replace tokens, and defer parsers and h
   assert.equal(prompts[7]!.initialValue, false);
   assert.deepEqual(prompts[9]!.initialValues, ['east']);
   assert.equal(prompts[11]!.initialValue, 'old target');
-  assert.match(notes.at(-1)!, /--count=2 --force --regions=west/);
-  assert.doesNotMatch(notes.at(-1)!, /--count=1|--regions=east|old target/);
+  assert.match(logs.at(-1)!, /--count=2 --force --regions=west/);
+  assert.doesNotMatch(logs.at(-1)!, /--count=1|--regions=east|old target/);
   assert.equal(answers.length, 0);
 });
 
@@ -335,6 +338,43 @@ test('custom markers used as values or after -- remain data', async () => {
   assert.deepEqual(root.processedArgs, ['-i']);
 });
 
+test('omitted booleans report not supplied; implications stay with Commander', async () => {
+  const root = new Command().addOption(new Option('--force').implies({ dryRun: true })).option('--dry-run');
+  let result: unknown;
+  root.action(() => { result = root.opts(); });
+  interactive(root, [true, false, -1, true]);
+  addWizard(root, { invocation: ['demo'] });
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.deepEqual(result, { force: true, dryRun: true });
+  assert.match(notes.at(-1)!, /force: true/);
+  assert.match(notes.at(-1)!, /dryRun: not supplied/);
+});
+
+test('variadic text values are preserved verbatim', async () => {
+  const root = new Command().option('--tags <values...>');
+  interactive(root, ['  spaced  ', '', -1, true]);
+  addWizard(root, { invocation: ['demo'] });
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.deepEqual(root.opts(), { tags: ['  spaced  '] });
+});
+
+test('optional choices can be unset while editing', async () => {
+  const root = new Command().addOption(new Option('--env <name>').choices(['dev', 'prod']));
+  interactive(root, [true, 'dev', 0, false, -1, true]);
+  addWizard(root, { invocation: ['demo'] });
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.deepEqual(root.opts(), {});
+});
+
+test('rerun command prints undecorated, outside the review note', async () => {
+  const root = new Command().requiredOption('--name <value>');
+  interactive(root, ['x', -1, true]);
+  addWizard(root, { invocation: ['demo'] });
+  await root.parseAsync(['--wizard'], { from: 'user' });
+  assert.doesNotMatch(notes.at(-1)!, /rerun/);
+  assert.equal(logs[0], 'rerun non-interactively:\ndemo --name=x');
+});
+
 test('invalid custom flags and collisions fail before decoration', () => {
   for (const flags of ['', 'interactive', '--interactive <value>', '--interactive [value]', '--no-interactive', '-i, -w', '--one --two']) {
     const root = new Command().command('run').action(() => {});
@@ -363,7 +403,7 @@ test('scan matches Commander: = terminated variadic leaves positionals', async (
   addWizard(root, { invocation: ['scan'] });
   await root.parseAsync(['--wizard', '--tags=a', 'prod', '--tags=b'], { from: 'user' });
   assert.deepEqual(result, ordinary);
-  assert.match(notes[0]!, /--tags=a --tags=b/);
+  assert.match(logs[0]!, /--tags=a --tags=b/);
 });
 
 test('defaulted inputs cannot be emptied, so review cannot mislead', async () => {
