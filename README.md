@@ -22,12 +22,13 @@ npm install commander-wizard
 ## Quick start
 
 ```js
-import { Command } from 'commander';
+import { Argument, Command } from 'commander';
 import { addWizard } from 'commander-wizard';
 
 const program = new Command('deploy-cli');
 const deploy = program.command('deploy')
-  .argument('<environment>')
+  .addArgument(new Argument('<environment>', 'target environment')
+    .choices(['dev', 'staging', 'prod']))
   .requiredOption('--service <name>')
   .option('--region <name>', 'AWS region', 'us-east-1')
   .option('--force', 'skip safety checks')

@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 # Real terminal integration check, in addition to the deterministic unit tests.
 set timeout 20
-spawn nub examples/deploy.ts deploy --wizard --force --replicas 7
+spawn nub tests/smoke-cli.ts deploy --wizard --force --replicas 7
 exec stty rows 40 columns 140 < $spawn_out(slave,name)
 expect_before {
   timeout { puts stderr "SMOKE-FAIL: timed out"; exit 1 }
